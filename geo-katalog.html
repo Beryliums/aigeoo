@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GEOKATALOG — Script GEE, Prompt & Alur Analisis GIS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F3F7F5;
+    --surface: #FFFFFF;
+    --surface-raised: #FBFDFC;
+    --ink: #0F2620;
+    --ink-soft: #4C6B62;
+    --ink-faint: #8AA39B;
+    --line: #D6E2DD;
+    --line-strong: #B7C9C2;
+    --accent: #2F7A54;
+    --accent-ink: #FFFFFF;
+    --accent-soft: #E2F0E7;
+    --rust: #B85C2E;
+    --rust-soft: #F5E4D8;
+    --code-bg: #10231D;
+    --code-ink: #DCEEE5;
+    --code-keyword: #7FD9A8;
+    --code-comment: #6B8F84;
+    --shadow: none;
+    --radius: 3px;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0B1613;
+      --surface: #10201B;
+      --surface-raised: #142A23;
+      --ink: #E7F2ED;
+      --ink-soft: #9FC0B5;
+      --ink-faint: #5E7C73;
+      --line: #22392F;
+      --line-strong: #2E4A3E;
+      --accent: #5FCB94;
+      --accent-ink: #06140F;
+      --accent-soft: #17352A;
+      --rust: #E39A69;
+      --rust-soft: #2E2013;
+      --code-bg: #06120E;
+      --code-ink: #CDE9DD;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0B1613;
+    --surface: #10201B;
+    --surface-raised: #142A23;
+    --ink: #E7F2ED;
+    --ink-soft: #9FC0B5;
+    --ink-faint: #5E7C73;
+    --line: #22392F;
+    --line-strong: #2E4A3E;
+    --accent: #5FCB94;
+    --accent-ink: #06140F;
+    --accent-soft: #17352A;
+    --rust: #E39A69;
+    --rust-soft: #2E2013;
+    --code-bg: #06120E;
+    --code-ink: #CDE9DD;
+  }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; background: var(--bg); color: var(--ink);
+    font-family: 'IBM Plex Sans', -apple-system, sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  body { min-height: 100%; }
+  a { color: var(--accent); }
+  code, pre, .mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+
+  /* ===== Top bar ===== */
+  .topbar {
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 24px; padding-top: calc(14px + env(safe-area-inset-top, 0px));
+    background: var(--bg); border-bottom: 1px solid var(--line);
+  }
+  .brand { display: flex; align-items: baseline; gap: 10px; }
+  .brand .mark {
+    width: 26px; height: 26px; border: 1.5px solid var(--ink);
+    position: relative; flex-shrink: 0;
+  }
+  .brand .mark::before, .brand .mark::after {
+    content: ""; position: absolute; background: var(--ink);
+  }
+  .brand .mark::before { left: 0; right: 0; top: 50%; height: 1px; }
+  .brand .mark::after { top: 0; bottom: 0; left: 50%; width: 1px; }
+  .brand h1 { font-size: 16px; font-weight: 700; letter-spacing: 0.02em; margin: 0; }
+  .brand .sub { font-size: 12px; color: var(--ink-faint); font-family: 'IBM Plex Mono', monospace; }
+  .theme-toggle {
+    border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink-soft);
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px; padding: 6px 10px;
+    border-radius: var(--radius); cursor: pointer;
+  }
+
+  /* ===== Hero ===== */
+  .hero {
+    position: relative; padding: 56px 24px 40px; border-bottom: 1px solid var(--line);
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 28px 28px;
+    background-position: -1px -1px;
+  }
+  .hero-inner { max-width: 760px; }
+  .hero .eyebrow {
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--accent);
+    margin: 0 0 14px; display: flex; align-items: center; gap: 8px;
+  }
+  .hero .eyebrow .dot { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; display: inline-block; }
+  .hero h2 {
+    font-size: clamp(28px, 4.4vw, 42px); line-height: 1.15; margin: 0 0 16px; font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .hero p.lede {
+    font-size: 16px; line-height: 1.6; color: var(--ink-soft); max-width: 58ch; margin: 0 0 28px;
+  }
+  .searchbox {
+    display: flex; align-items: center; gap: 10px; background: var(--surface);
+    border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 12px 14px;
+    max-width: 520px;
+  }
+  .searchbox input {
+    flex: 1; border: none; background: transparent; outline: none; font-size: 14px;
+    color: var(--ink); font-family: 'IBM Plex Sans', sans-serif;
+  }
+  .searchbox input::placeholder { color: var(--ink-faint); }
+  .searchbox svg { flex-shrink: 0; color: var(--ink-faint); }
+  .stats-row { display: flex; gap: 28px; margin-top: 26px; flex-wrap: wrap; }
+  .stat .num { font-family: 'IBM Plex Mono', monospace; font-size: 22px; font-weight: 600; color: var(--accent); }
+  .stat .label { font-size: 12px; color: var(--ink-faint); }
+
+  /* ===== Layout ===== */
+  .layout {
+    display: grid; grid-template-columns: 220px 1fr; gap: 0; max-width: 1180px; margin: 0 auto;
+  }
+  .sidebar {
+    padding: 28px 20px; border-right: 1px solid var(--line); align-self: start;
+    position: sticky; top: calc(60px + env(safe-area-inset-top, 0px));
+  }
+  .sidebar h3 {
+    font-size: 11px; text-transform: none; letter-spacing: 0.03em; color: var(--ink-faint);
+    margin: 0 0 10px; font-family: 'IBM Plex Mono', monospace;
+  }
+  .filter-group { margin-bottom: 26px; }
+  .filter-btn {
+    display: flex; align-items: center; justify-content: space-between; width: 100%;
+    text-align: left; background: none; border: none; padding: 7px 0; font-size: 13.5px;
+    color: var(--ink-soft); cursor: pointer; font-family: inherit; border-bottom: 1px solid transparent;
+  }
+  .filter-btn:hover { color: var(--ink); }
+  .filter-btn.active { color: var(--accent); font-weight: 600; }
+  .filter-btn .count { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink-faint); }
+  .tag-cloud { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag-chip {
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px; padding: 4px 8px;
+    border: 1px solid var(--line-strong); border-radius: 20px; background: var(--surface);
+    color: var(--ink-soft); cursor: pointer;
+  }
+  .tag-chip.active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+
+  .content { padding: 28px 24px 80px; min-width: 0; }
+  .content-header {
+    display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 18px;
+    flex-wrap: wrap; gap: 8px;
+  }
+  .content-header h3 { font-size: 15px; margin: 0; }
+  .content-header .count-label { font-size: 12px; color: var(--ink-faint); font-family: 'IBM Plex Mono', monospace; }
+
+  .cards { display: flex; flex-direction: column; gap: 12px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .card-head {
+    display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px; cursor: pointer;
+  }
+  .card-id {
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink-faint);
+    border: 1px solid var(--line-strong); border-radius: 3px; padding: 2px 6px; flex-shrink: 0;
+    margin-top: 2px; white-space: nowrap;
+  }
+  .card-id.gee { color: var(--accent); border-color: var(--accent); }
+  .card-id.wf { color: var(--rust); border-color: var(--rust); }
+  .card-id.ai { color: #6B8FD6; border-color: #6B8FD6; }
+  .card-main { flex: 1; min-width: 0; }
+  .card-title { font-size: 15px; font-weight: 600; margin: 0 0 4px; }
+  .card-desc { font-size: 13.5px; color: var(--ink-soft); line-height: 1.5; margin: 0 0 8px; }
+  .card-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .card-tags span {
+    font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--ink-faint);
+    background: var(--accent-soft); padding: 2px 7px; border-radius: 20px;
+  }
+  .chevron {
+    flex-shrink: 0; margin-top: 4px; color: var(--ink-faint); transition: transform 0.18s ease;
+  }
+  .card.open .chevron { transform: rotate(180deg); }
+  .card-body { display: none; border-top: 1px solid var(--line); }
+  .card.open .card-body { display: block; }
+  .card-body-inner { padding: 4px 18px 18px; }
+
+  .code-block { position: relative; margin-top: 6px; }
+  .code-block pre {
+    background: var(--code-bg); color: var(--code-ink); padding: 16px; border-radius: var(--radius);
+    overflow-x: auto; font-size: 12.5px; line-height: 1.6; margin: 0; max-width: 100%;
+  }
+  .copy-btn {
+    position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.08);
+    color: var(--code-ink); border: 1px solid rgba(255,255,255,0.18); border-radius: 3px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px; padding: 5px 9px; cursor: pointer;
+  }
+  .copy-btn:hover { background: rgba(255,255,255,0.16); }
+
+  .steps { list-style: none; margin: 6px 0 0; padding: 0; counter-reset: step; }
+  .steps li {
+    counter-increment: step; position: relative; padding: 10px 0 10px 34px; font-size: 13.5px;
+    line-height: 1.55; color: var(--ink); border-bottom: 1px dashed var(--line);
+  }
+  .steps li:last-child { border-bottom: none; }
+  .steps li::before {
+    content: counter(step); position: absolute; left: 0; top: 9px;
+    width: 22px; height: 22px; border: 1px solid var(--line-strong); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink-soft);
+  }
+  .steps li strong { color: var(--ink); }
+  .note {
+    margin-top: 12px; padding: 10px 12px; background: var(--rust-soft); border-radius: var(--radius);
+    font-size: 12.5px; color: var(--ink); border-left: 3px solid var(--rust);
+  }
+  .prompt-box {
+    background: var(--accent-soft); border-radius: var(--radius); padding: 14px 16px;
+    font-size: 13px; line-height: 1.6; margin-top: 6px; position: relative; white-space: pre-wrap;
+    font-family: 'IBM Plex Mono', monospace; color: var(--ink);
+  }
+
+  .empty-state {
+    text-align: center; padding: 60px 20px; color: var(--ink-faint);
+  }
+
+  footer {
+    border-top: 1px solid var(--line); padding: 28px 24px calc(28px + env(safe-area-inset-bottom, 0px));
+    max-width: 1180px; margin: 0 auto; display: flex; justify-content: space-between;
+    flex-wrap: wrap; gap: 12px; font-size: 12.5px; color: var(--ink-faint);
+  }
+  footer a { color: var(--ink-soft); }
+
+  @media (max-width: 820px) {
+    .layout { grid-template-columns: 1fr; }
+    .sidebar {
+      position: static; border-right: none; border-bottom: 1px solid var(--line);
+      display: flex; flex-wrap: wrap; gap: 24px; padding: 20px;
+    }
+    .filter-group { margin-bottom: 0; flex: 1; min-width: 140px; }
+    .hero { padding: 40px 18px 32px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <span class="mark"></span>
+    <div>
+      <h1>GEOKATALOG</h1>
+    </div>
+    <span class="sub mono">v1 · open source</span>
+  </div>
+  <button class="theme-toggle" id="themeToggle">MODE: AUTO</button>
+</div>
+
+<div class="hero">
+  <div class="hero-inner">
+    <p class="eyebrow"><span class="dot"></span>KATALOG SCRIPT &amp; ALUR ANALISIS GEOSPASIAL</p>
+    <h2>Script GEE, prompt AI, dan langkah analisis GIS — siap pakai, siap dibongkar.</h2>
+    <p class="lede">Kumpulan referensi kerja untuk analisis penginderaan jauh dan GIS: kode Google Earth Engine yang bisa langsung ditempel, alur kerja lapangan-ke-peta langkah demi langkah, dan prompt AI untuk mempercepat bagian yang membosankan. Semua terbuka, boleh disalin, dimodifikasi, dan disebarluaskan.</p>
+    <div class="searchbox">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="searchInput" type="text" placeholder="Cari: mangrove, NDVI, klasifikasi, UAV, akurasi…">
+    </div>
+    <div class="stats-row">
+      <div class="stat"><div class="num" id="statScripts">0</div><div class="label">Script GEE</div></div>
+      <div class="stat"><div class="num" id="statWorkflows">0</div><div class="label">Alur GIS</div></div>
+      <div class="stat"><div class="num" id="statPrompts">0</div><div class="label">Prompt AI</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="filter-group">
+      <h3>KATEGORI</h3>
+      <div id="categoryFilters"></div>
+    </div>
+    <div class="filter-group">
+      <h3>TAG</h3>
+      <div class="tag-cloud" id="tagFilters"></div>
+    </div>
+  </aside>
+
+  <main class="content">
+    <div class="content-header">
+      <h3 id="sectionTitle">Semua entri</h3>
+      <span class="count-label" id="resultCount">0 hasil</span>
+    </div>
+    <div class="cards" id="cardContainer"></div>
+    <div class="empty-state" id="emptyState" style="display:none;">Tidak ada entri yang cocok. Coba kata kunci atau filter lain.</div>
+  </main>
+</div>
+
+<footer>
+  <div>GEOKATALOG — dibuat untuk dipakai, disalin, dan diperluas. Lisensi MIT pada semua cuplikan kode.</div>
+  <div>Tidak ada data yang dikirim ke mana pun — semuanya berjalan di browser ini.</div>
+</footer>
+
+<script>
+const DATA = [
+  {
+    id: "GEE-01", cat: "gee", title: "Cloud masking + median composite Sentinel-2",
+    desc: "Menyaring piksel awan dan bayangan awan dari koleksi Sentinel-2 SR, lalu membuat komposit median bebas awan untuk periode tertentu — dasar untuk hampir semua analisis optik.",
+    tags: ["Sentinel-2", "Cloud Masking", "Composite"],
+    code: `// Cloud-masked Sentinel-2 median composite
+function maskS2clouds(image) {
+  var qa = image.select('QA60');
+  var cloudBitMask = 1 << 10;
+  var cirrusBitMask = 1 << 11;
+  var mask = qa.bitwiseAnd(cloudBitMask).eq(0)
+    .and(qa.bitwiseAnd(cirrusBitMask).eq(0));
+  return image.updateMask(mask).divide(10000);
+}
+
+var roi = ee.Geometry.Rectangle([106.05, -6.30, 106.20, -6.15]); // ganti sesuai AOI
+
+var collection = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+  .filterBounds(roi)
+  .filterDate('2024-01-01', '2024-06-30')
+  .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20))
+  .map(maskS2clouds);
+
+var composite = collection.median().clip(roi);
+
+Map.centerObject(roi, 12);
+Map.addLayer(composite, {bands: ['B4','B3','B2'], min: 0, max: 0.3}, 'RGB Composite');`
+  },
+  {
+    id: "GEE-02", cat: "gee", title: "Indeks vegetasi mangrove (NDVI + CMRI)",
+    desc: "Menghitung NDVI standar dan Combined Mangrove Recognition Index (CMRI) yang membantu memisahkan mangrove dari vegetasi darat lain di zona pesisir.",
+    tags: ["Mangrove", "NDVI", "Sentinel-2"],
+    code: `// NDVI dan CMRI untuk deteksi mangrove
+var ndvi = composite.normalizedDifference(['B8', 'B4']).rename('NDVI');
+var ndwi = composite.normalizedDifference(['B3', 'B8']).rename('NDWI');
+
+// CMRI = NDVI - NDWI, memisahkan mangrove (nilai tinggi) dari air & lahan terbuka
+var cmri = ndvi.subtract(ndwi).rename('CMRI');
+
+var mangrovemask = cmri.gt(0.3).and(ndvi.gt(0.2)).selfMask();
+
+Map.addLayer(ndvi, {min: -1, max: 1, palette: ['brown','white','green']}, 'NDVI');
+Map.addLayer(mangrovemask, {palette: ['00441b']}, 'Dugaan tutupan mangrove');
+
+Export.image.toDrive({
+  image: cmri,
+  description: 'CMRI_export',
+  region: roi,
+  scale: 10,
+  maxPixels: 1e9
+});`
+  },
+  {
+    id: "GEE-03", cat: "gee", title: "Klasifikasi Random Forest + akurasi",
+    desc: "Alur lengkap: gabungkan band + indeks jadi stack fitur, latih Random Forest dari titik training, klasifikasikan citra, lalu hitung confusion matrix dan overall accuracy.",
+    tags: ["Machine Learning", "Klasifikasi", "Akurasi"],
+    code: `// Klasifikasi Random Forest dengan validasi akurasi
+var bands = ['B2','B3','B4','B8','B11'];
+var stack = composite.select(bands).addBands(ndvi).addBands(cmri);
+
+// trainingPoints: FeatureCollection dengan properti 'class' (0=air,1=mangrove,2=tambak,3=lahan lain)
+var training = stack.sampleRegions({
+  collection: trainingPoints,
+  properties: ['class'],
+  scale: 10
+});
+
+var withRandom = training.randomColumn('random');
+var trainSet = withRandom.filter(ee.Filter.lt('random', 0.7));
+var testSet  = withRandom.filter(ee.Filter.gte('random', 0.7));
+
+var classifier = ee.Classifier.smileRandomForest(100)
+  .train({
+    features: trainSet,
+    classProperty: 'class',
+    inputProperties: bands.concat(['NDVI','CMRI'])
+  });
+
+var classified = stack.classify(classifier);
+
+var validated = testSet.classify(classifier);
+var confMatrix = validated.errorMatrix('class', 'classification');
+print('Confusion matrix:', confMatrix);
+print('Overall accuracy:', confMatrix.accuracy());
+print('Kappa:', confMatrix.kappa());
+
+Map.addLayer(classified, {min:0, max:3, palette:['#1f77b4','#2ca02c','#ff7f0e','#8c564b']}, 'Klasifikasi');`
+  },
+  {
+    id: "GEE-04", cat: "gee", title: "Deteksi perubahan garis pantai multi-tahun",
+    desc: "Membandingkan dua komposit NDWI dari tahun berbeda untuk memetakan wilayah abrasi (kehilangan daratan) dan akresi (penambahan daratan) secara sederhana.",
+    tags: ["Change Detection", "NDWI", "Pesisir"],
+    code: `// Deteksi perubahan garis pantai antar dua periode
+function ndwiComposite(start, end) {
+  return ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+    .filterBounds(roi).filterDate(start, end)
+    .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20))
+    .map(maskS2clouds)
+    .median()
+    .normalizedDifference(['B3','B8']).rename('NDWI');
+}
+
+var ndwi2015 = ndwiComposite('2015-01-01', '2015-12-31');
+var ndwi2024 = ndwiComposite('2024-01-01', '2024-12-31');
+
+var water2015 = ndwi2015.gt(0);
+var water2024 = ndwi2024.gt(0);
+
+var abrasi  = water2024.and(water2015.not()).selfMask(); // darat jadi air
+var akresi  = water2015.and(water2024.not()).selfMask(); // air jadi darat
+
+Map.addLayer(abrasi, {palette: ['red']}, 'Abrasi (2015→2024)');
+Map.addLayer(akresi, {palette: ['blue']}, 'Akresi (2015→2024)');
+
+var areaImg = ee.Image.pixelArea().divide(10000); // hektar
+print('Luas abrasi (ha):', areaImg.updateMask(abrasi).reduceRegion({
+  reducer: ee.Reducer.sum(), geometry: roi, scale: 10, maxPixels: 1e9
+}));`
+  },
+  {
+    id: "GEE-05", cat: "gee", title: "Ekspor time-series indeks per titik/AOI",
+    desc: "Mengambil nilai rata-rata suatu indeks (misal NDVI) dari waktu ke waktu untuk satu wilayah, lalu mengekspornya sebagai tabel CSV — dasar untuk grafik tren monitoring.",
+    tags: ["Time Series", "Export", "Monitoring"],
+    code: `// Time-series NDVI bulanan untuk satu AOI, diekspor ke CSV
+var months = ee.List.sequence(0, 23); // 24 bulan ke belakang
+var startDate = ee.Date('2023-01-01');
+
+var series = ee.FeatureCollection(months.map(function(m) {
+  var start = startDate.advance(m, 'month');
+  var end = start.advance(1, 'month');
+  var img = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+    .filterBounds(roi).filterDate(start, end)
+    .map(maskS2clouds)
+    .median()
+    .normalizedDifference(['B8','B4']).rename('NDVI');
+
+  var mean = img.reduceRegion({
+    reducer: ee.Reducer.mean(), geometry: roi, scale: 10, maxPixels: 1e9
+  });
+
+  return ee.Feature(null, {
+    'date': start.format('YYYY-MM'),
+    'ndvi_mean': mean.get('NDVI')
+  });
+}));
+
+Export.table.toDrive({
+  collection: series,
+  description: 'NDVI_timeseries',
+  fileFormat: 'CSV'
+});`
+  },
+  {
+    id: "WF-01", cat: "workflow", title: "UAV orthomosaic → siap dianalisis di GIS",
+    desc: "Alur dari foto drone mentah sampai orthophoto dan DSM yang bisa langsung dibuka dan dianalisis di QGIS.",
+    tags: ["UAV", "Metashape", "QGIS"],
+    steps: [
+      "Cek kelengkapan data terbang: pastikan overlap foto minimal 75% depan / 60% samping, dan ada minimal 5 GCP (Ground Control Point) yang sudah diukur koordinatnya di lapangan.",
+      "Import seluruh foto ke Agisoft Metashape, lalu jalankan <strong>Align Photos</strong> dengan akurasi High agar posisi kamera terhitung presisi.",
+      "Masukkan koordinat GCP secara manual pada tiap foto yang terlihat, lalu jalankan <strong>Optimize Cameras</strong> untuk mengoreksi geometri hasil align.",
+      "Bangun <strong>Dense Point Cloud</strong>, lalu dari situ generate <strong>DSM</strong> (Digital Surface Model) dan <strong>Orthomosaic</strong>.",
+      "Export orthomosaic sebagai GeoTIFF dan DSM sebagai GeoTIFF terpisah, pastikan sistem koordinat (CRS) sesuai wilayah kajian (misal UTM zona lokal).",
+      "Buka kedua file di QGIS, cek kesejajaran (tidak ada offset), lalu lanjut ke digitasi manual atau klasifikasi objek (OBIA) sesuai kebutuhan."
+    ]
+  },
+  {
+    id: "WF-02", cat: "workflow", title: "Uji akurasi peta klasifikasi",
+    desc: "Langkah menyusun titik ground truth dan menghitung akurasi peta hasil klasifikasi (citra satelit atau UAV) agar bisa dilaporkan dengan angka yang defensible.",
+    tags: ["Akurasi", "Ground Truth", "Klasifikasi"],
+    steps: [
+      "Tentukan desain sampling — untuk peta kelas tutupan lahan, stratified random sampling per kelas biasanya lebih representatif daripada random sampling murni.",
+      "Kumpulkan titik ground truth dari survei lapangan (GPS handheld) atau interpretasi visual citra resolusi sangat tinggi (misal Google Earth) untuk kelas yang sulid diakses.",
+      "Pisahkan titik menjadi data training (untuk melatih classifier) dan data testing (untuk validasi) — jangan gunakan titik yang sama untuk keduanya.",
+      "Bandingkan kelas prediksi vs kelas aktual pada titik testing, susun ke dalam <strong>confusion matrix</strong> (baris = referensi, kolom = prediksi).",
+      "Hitung <strong>Overall Accuracy</strong> (jumlah diagonal / total sampel), <strong>Producer's</strong> dan <strong>User's Accuracy</strong> per kelas, serta <strong>Kappa coefficient</strong>.",
+      "Laporkan confusion matrix lengkap di lampiran, bukan cuma angka overall accuracy — reviewer/penguji biasanya ingin lihat kelas mana yang paling sering tertukar."
+    ]
+  },
+  {
+    id: "WF-03", cat: "workflow", title: "Deteksi perubahan mangrove multi-temporal",
+    desc: "Alur menyusun analisis perubahan luasan dan kondisi mangrove antar dua atau lebih periode waktu, dari data mentah sampai matriks perubahan.",
+    tags: ["Mangrove", "Change Detection", "Multi-temporal"],
+    steps: [
+      "Pilih citra dari musim yang sama (misal sama-sama musim kemarau) untuk setiap periode, supaya perbedaan fenologi tidak disalahartikan sebagai perubahan tutupan.",
+      "Lakukan koreksi atmosferik dan cloud masking pada tiap periode secara konsisten (gunakan parameter yang sama).",
+      "Klasifikasikan tiap periode secara terpisah dengan skema kelas yang identik (misal: mangrove lebat, mangrove jarang, tambak, air, lahan lain).",
+      "Tumpang-susunkan (overlay) dua peta klasifikasi, lalu bangun matriks transisi (from-to matrix) untuk melihat kelas mana berubah jadi kelas apa.",
+      "Hitung luas tiap kategori perubahan (tetap mangrove, hilang jadi tambak, hilang jadi lahan lain, dst.) dalam hektar dan persentase.",
+      "Validasi silang perubahan yang terdeteksi dengan citra resolusi tinggi pada beberapa titik contoh, untuk memastikan bukan artefak klasifikasi."
+    ]
+  },
+  {
+    id: "WF-04", cat: "workflow", title: "Survei ground-truth & georeferensi lapangan",
+    desc: "Langkah praktis mengumpulkan data lapangan untuk pemetaan habitat pesisir (mangrove/benthic) agar hasilnya bisa langsung dipadukan dengan data GIS.",
+    tags: ["Ground Truth", "Benthic", "Survei Lapangan"],
+    steps: [
+      "Rancang titik sampling di atas peta dasar (citra atau peta rencana) sebelum berangkat, dengan mempertimbangkan aksesibilitas dan representasi tiap kelas habitat.",
+      "Di lapangan, catat koordinat GPS pada tiap titik dengan akurasi yang cukup (idealnya sub-meter jika memakai GPS geodetik/RTK).",
+      "Dokumentasikan tiap titik dengan foto habitat, deskripsi kondisi (misal kerapatan tegakan, jenis substrat), dan waktu pengambilan.",
+      "Beri kode unik tiap titik yang konsisten dengan skema atribut yang akan dipakai di GIS (misal ID, kelas, tanggal, fotografer).",
+      "Setelah kembali, import titik ke QGIS sebagai shapefile/GeoPackage, cek apakah semua titik jatuh pada lokasi yang masuk akal di atas citra.",
+      "Simpan data mentah (GPX/CSV asli) terpisah dari data yang sudah diolah — ini penting untuk audit trail kalau ada titik yang perlu dikoreksi ulang."
+    ]
+  },
+  {
+    id: "AI-01", cat: "ai", title: "Interpretasi hasil klasifikasi NDVI",
+    desc: "Prompt untuk meminta AI membantu membaca pola hasil indeks vegetasi dan menyarankan ambang batas (threshold) yang lebih tepat.",
+    tags: ["NDVI", "Interpretasi", "Threshold"],
+    prompt: `Saya punya hasil analisis NDVI dari citra Sentinel-2 untuk wilayah [nama wilayah], periode [tanggal]. Statistik yang saya dapat: NDVI minimum = [angka], maksimum = [angka], rata-rata = [angka], standar deviasi = [angka]. Wilayah ini terdiri dari campuran [sebutkan tutupan lahan, misal: mangrove, tambak, air, lahan terbuka].
+
+Tolong bantu saya:
+1. Interpretasikan apakah rentang nilai ini masuk akal untuk kombinasi tutupan lahan tersebut.
+2. Sarankan ambang batas (threshold) NDVI yang masuk akal untuk memisahkan vegetasi rapat, vegetasi jarang, dan non-vegetasi, dengan alasan ilmiahnya.
+3. Sebutkan potensi sumber kesalahan (misal pengaruh awan tipis, tanah basah, atau musim) yang perlu saya cek ulang sebelum memakai threshold ini di laporan.`
+  },
+  {
+    id: "AI-02", cat: "ai", title: "Menyusun draf Metode dari alur kerja GEE",
+    desc: "Prompt untuk mengubah langkah-langkah teknis yang sudah dikerjakan menjadi draf bagian Metode Penelitian yang siap diedit.",
+    tags: ["Penulisan", "Metode", "Thesis"],
+    prompt: `Saya sudah menjalankan alur analisis berikut di Google Earth Engine untuk penelitian tentang [topik penelitian, misal: pemetaan sebaran mangrove]:
+
+1. [langkah 1, misal: mengunduh citra Sentinel-2 level 2A periode Januari-Juni 2024]
+2. [langkah 2, misal: melakukan masking awan menggunakan band QA60]
+3. [langkah 3, misal: menghitung indeks NDVI dan CMRI]
+4. [langkah 4, misal: klasifikasi Random Forest dengan 100 titik training]
+5. [langkah 5, misal: validasi akurasi dengan 30 titik testing]
+
+Tolong susun ini menjadi draf paragraf bagian "Metode Penelitian" dengan gaya penulisan akademik formal bahasa Indonesia, sertakan justifikasi singkat kenapa tiap metode dipilih (bisa saya edit lagi setelahnya), dan tandai bagian yang masih perlu saya lengkapi dengan angka/referensi spesifik menggunakan [DILENGKAPI].`
+  },
+  {
+    id: "AI-03", cat: "ai", title: "Debug script GEE yang error",
+    desc: "Prompt untuk minta bantuan AI melacak penyebab error pada kode JavaScript Earth Engine, lengkap dengan konteks yang perlu disertakan.",
+    tags: ["Debugging", "GEE", "JavaScript"],
+    prompt: `Script Google Earth Engine saya menghasilkan error berikut saat dijalankan di Code Editor:
+
+Pesan error: [tempel pesan error lengkap dari console]
+
+Berikut kodenya:
+[tempel kode lengkap atau bagian yang relevan]
+
+Tolong bantu saya:
+1. Jelaskan apa penyebab error ini dalam bahasa yang sederhana dulu, baru istilah teknisnya.
+2. Tunjukkan baris mana yang bermasalah.
+3. Berikan versi kode yang sudah diperbaiki, dengan komentar singkat di baris yang diubah supaya saya paham apa yang berbeda.`
+  },
+  {
+    id: "AI-04", cat: "ai", title: "Merancang desain sampling akurasi",
+    desc: "Prompt untuk meminta AI membantu merancang jumlah dan sebaran titik ground truth yang proporsional untuk uji akurasi peta klasifikasi.",
+    tags: ["Sampling", "Akurasi", "Desain Survei"],
+    prompt: `Saya akan membuat peta klasifikasi tutupan lahan dengan kelas berikut dan estimasi luas kasar (dari klasifikasi awal): [kelas 1] = [luas] ha, [kelas 2] = [luas] ha, [kelas 3] = [luas] ha, dst. Total area studi sekitar [luas total] ha, dan wilayah studi terletak di [nama lokasi].
+
+Tolong bantu saya:
+1. Sarankan jumlah total titik sampel ground truth yang wajar untuk uji akurasi (dengan mempertimbangkan standar umum penelitian, misal minimal 30-50 titik per kelas untuk kelas kecil).
+2. Sarankan metode alokasi sampel per kelas (equal allocation vs proportional allocation vs disproportionate) yang paling cocok untuk kasus saya, dengan alasannya.
+3. Ingatkan pertimbangan praktis di lapangan (aksesibilitas, waktu survei, biaya) yang perlu saya cek sebelum menetapkan jumlah akhir.`
+  }
+];
+
+const state = { category: "all", tag: null, query: "" };
+
+function renderStats() {
+  document.getElementById('statScripts').textContent = DATA.filter(d => d.cat === 'gee').length;
+  document.getElementById('statWorkflows').textContent = DATA.filter(d => d.cat === 'workflow').length;
+  document.getElementById('statPrompts').textContent = DATA.filter(d => d.cat === 'ai').length;
+}
+
+function renderCategoryFilters() {
+  const cats = [
+    { key: 'all', label: 'Semua entri' },
+    { key: 'gee', label: 'Script GEE' },
+    { key: 'workflow', label: 'Alur GIS' },
+    { key: 'ai', label: 'Prompt AI' }
+  ];
+  const el = document.getElementById('categoryFilters');
+  el.innerHTML = '';
+  cats.forEach(c => {
+    const count = c.key === 'all' ? DATA.length : DATA.filter(d => d.cat === c.key).length;
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn' + (state.category === c.key ? ' active' : '');
+    btn.innerHTML = `<span>${c.label}</span><span class="count">${count}</span>`;
+    btn.onclick = () => { state.category = c.key; render(); };
+    el.appendChild(btn);
+  });
+}
+
+function renderTagFilters() {
+  const allTags = [...new Set(DATA.flatMap(d => d.tags))].sort();
+  const el = document.getElementById('tagFilters');
+  el.innerHTML = '';
+  allTags.forEach(tag => {
+    const chip = document.createElement('span');
+    chip.className = 'tag-chip' + (state.tag === tag ? ' active' : '');
+    chip.textContent = tag;
+    chip.onclick = () => { state.tag = state.tag === tag ? null : tag; render(); };
+    el.appendChild(chip);
+  });
+}
+
+function matchesQuery(item, q) {
+  if (!q) return true;
+  const hay = (item.title + ' ' + item.desc + ' ' + item.tags.join(' ')).toLowerCase();
+  return hay.includes(q.toLowerCase());
+}
+
+function idClass(cat) { return cat === 'gee' ? 'gee' : cat === 'workflow' ? 'wf' : 'ai'; }
+
+function renderCards() {
+  const filtered = DATA.filter(d =>
+    (state.category === 'all' || d.cat === state.category) &&
+    (!state.tag || d.tags.includes(state.tag)) &&
+    matchesQuery(d, state.query)
+  );
+
+  const container = document.getElementById('cardContainer');
+  const empty = document.getElementById('emptyState');
+  container.innerHTML = '';
+  document.getElementById('resultCount').textContent = filtered.length + ' hasil';
+
+  if (filtered.length === 0) {
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  filtered.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'card';
+
+    let bodyContent = '';
+    if (item.code) {
+      bodyContent = `<div class="code-block">
+        <button class="copy-btn" data-code="${item.id}">Salin kode</button>
+        <pre><code>${escapeHtml(item.code)}</code></pre>
+      </div>`;
+    } else if (item.steps) {
+      bodyContent = `<ol class="steps">${item.steps.map(s => `<li>${s}</li>`).join('')}</ol>`;
+    } else if (item.prompt) {
+      bodyContent = `<div class="code-block">
+        <button class="copy-btn" data-code="${item.id}">Salin prompt</button>
+        <div class="prompt-box">${escapeHtml(item.prompt)}</div>
+      </div>`;
+    }
+
+    card.innerHTML = `
+      <div class="card-head">
+        <span class="card-id ${idClass(item.cat)} mono">${item.id}</span>
+        <div class="card-main">
+          <h4 class="card-title">${item.title}</h4>
+          <p class="card-desc">${item.desc}</p>
+          <div class="card-tags">${item.tags.map(t => `<span>${t}</span>`).join('')}</div>
+        </div>
+        <svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="card-body"><div class="card-body-inner">${bodyContent}</div></div>
+    `;
+
+    card.querySelector('.card-head').addEventListener('click', () => {
+      card.classList.toggle('open');
+    });
+
+    const copyBtn = card.querySelector('.copy-btn');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const text = item.code || item.prompt;
+        try {
+          await navigator.clipboard.writeText(text);
+          copyBtn.textContent = 'Tersalin ✓';
+          setTimeout(() => { copyBtn.textContent = item.code ? 'Salin kode' : 'Salin prompt'; }, 1600);
+        } catch (err) {
+          copyBtn.textContent = 'Gagal menyalin';
+          setTimeout(() => { copyBtn.textContent = item.code ? 'Salin kode' : 'Salin prompt'; }, 1600);
+        }
+      });
+    }
+
+    container.appendChild(card);
+  });
+}
+
+function escapeHtml(str) {
+  return str.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+}
+
+function updateSectionTitle() {
+  const map = { all: 'Semua entri', gee: 'Script GEE', workflow: 'Alur analisis GIS', ai: 'Prompt AI' };
+  document.getElementById('sectionTitle').textContent = map[state.category];
+}
+
+function render() {
+  renderCategoryFilters();
+  renderTagFilters();
+  updateSectionTitle();
+  renderCards();
+}
+
+document.getElementById('searchInput').addEventListener('input', (e) => {
+  state.query = e.target.value;
+  render();
+});
+
+// Theme toggle: cycles auto -> light -> dark
+const themeBtn = document.getElementById('themeToggle');
+let themeMode = 'auto';
+themeBtn.addEventListener('click', () => {
+  themeMode = themeMode === 'auto' ? 'light' : themeMode === 'light' ? 'dark' : 'auto';
+  if (themeMode === 'auto') {
+    document.documentElement.removeAttribute('data-theme');
+    themeBtn.textContent = 'MODE: AUTO';
+  } else {
+    document.documentElement.setAttribute('data-theme', themeMode);
+    themeBtn.textContent = 'MODE: ' + themeMode.toUpperCase();
+  }
+});
+
+renderStats();
+render();
+</script>
+</body>
+</html>
